@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 太空射击 </title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#050a1a;overflow:hidden;font-family:"Microsoft YaHei",sans-serif;color:#fff;}
+        #game{display:block;width:100vw;height:100vh;background:radial-gradient(circle at 50%,#0a1330 0%,#020614 100%);}
+        .ui{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(10,20,40,0.85);padding:10px 30px;border-radius:50px;backdrop-filter:blur(10px);border:1px solid #00eaff33;z-index:999;color:#00eaff;font-weight:bold;}
+        .panel{position:fixed;top:80px;left:20px;width:280px;background:rgba(10,20,40,0.8);border-radius:16px;padding:20px;backdrop-filter:blur(15px);border:1px solid #00eaff22;z-index:999;}
+        .item{display:flex;justify-content:space-between;padding:10px;background:#ffffff08;border-radius:8px;margin-top:8px;}
+        .diff{display:flex;gap:6px;margin-top:10px;}
+        .diff button{padding:8px 6px;font-size:12px;}
+        button{width:100%;padding:10px;margin-top:10px;background:linear-gradient(90deg,#0088ff,#00eaff);border:none;border-radius:10px;font-weight:bold;cursor:pointer;}
+        .tips{font-size:12px;color:#ccc;margin-top:10px;line-height:1.4}
+        .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,20,40,0.98);padding:30px 50px;border-radius:20px;text-align:center;z-index:9999;display:none;}
+    </style>
+</head>
+<body>
+
+<div class="ui">🎯 灵玩时空-太空射击</div>
+<div class="panel">
+    <div class="item"><span>难度</span><span id="diffTxt" style="color:#ffcc00">普通</span></div>
+    <div class="item"><span>得分</span><span id="sc" style="color:#00ff88">0</span></div>
+    <div class="item"><span>目标</span><span style="color:#ffcc00">300分通关</span></div>
+    <div class="item"><span>生命</span><span id="hp" style="color:#ff3344">5</span></div>
+    <div class="item"><span>🛡️ 状态</span><span id="status" style="color:#00ff88">无</span></div>
+    <div class="diff">
+        <button onclick="setDifficulty(0)">简单</button>
+        <button onclick="setDifficulty(1)">普通</button>
+        <button onclick="setDifficulty(2)">困难</button>
+        <button onclick="setDifficulty(3)">地狱</button>
+    </div>
+    <button onclick="restart()">重新开始</button>
+    <!-- ✅ 返回你的主网页按钮 -->
+    <button onclick="goHome()" style="background:linear-gradient(90deg,#ff4466,#ff88aa);">返回主界面</button>
+    <div class="tips">
+        🎯 目标：300分通关<br>
+        🟦蓝色=护盾 | 🟨黄色=加速 | 🟥红色=清屏
+    </div>
+</div>
+
+<div class="modal" id="over" style="border:2px solid #ff3344">
+    <h2 style="color:#ff3344">游戏结束</h2>
+    <p>最终得分：<span id="final">0</span></p>
+    <button onclick="restart()">重新挑战</button>
+    <button onclick="goHome()">返回主页</button>
+</div>
+
+<div class="modal" id="win" style="border:2px solid #00ff88">
+    <h2 style="color:#00ff88">🎉 恭喜你通关胜利！</h2>
+    <p>你成功达到300分！</p>
+    <button onclick="restart()">再来一局</button>
+    <button onclick="goHome()">返回主页</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+
+let mouse={x:canvas.width/2,y:canvas.height/2};
+canvas.addEventListener("mousemove",(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    mouse.x=e.clientX-rect.left;
+    mouse.y=e.clientY-rect.top;
+});
+
+const difficulty = [
+  {name:"简单", speed:0.8, rate:1500, life:8},
+  {name:"普通", speed:1.2, rate:1000, life:5},
+  {name:"困难", speed:1.7, rate:600, life:3},
+  {name:"地狱", speed:2.2, rate:350, life:2},
+];
+
+let diffIndex=1;
+let score=0,hp=difficulty[diffIndex].life;
+let player={x:canvas.width/2,y:canvas.height/2,w:50,h:50,speed:6};
+let bullets=[],enemies=[],stars=[],items=[];
+let keys={},gameOver=false,gameWin=false;
+let hasShield=false, speedBoost=false;
+
+// 音效
+function shootSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=650;o.start();g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.08);o.stop(a.currentTime+0.08);}catch(e){}}
+function hitSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;o.start();g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.15);o.stop(a.currentTime+0.15);}catch(e){}}
+function hurtSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=140;o.start();g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.2);o.stop(a.currentTime+0.2);}catch(e){}}
+function itemSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=900;o.start();g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.2);o.stop(a.currentTime+0.2);}catch(e){}}
+function bombSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=150;o.start();g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.4);o.stop(a.currentTime+0.4);}catch(e){}}
+function winSound(){try{let a=new AudioContext();let o=a.createOscillator();let g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=800;o.start();setTimeout(()=>o.frequency.value=1200,100);g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.8);o.stop(a.currentTime+0.8);}catch(e){}}
+
+// 星空
+for(let i=0;i<300;i++)stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.5,sp:Math.random()*0.5+0.1});
+
+// 道具
+function spawnItem(){
+    if(gameOver||gameWin)return;
+    let types=["shield","speed","bomb"];
+    let colors=["#00aaff","#ffcc00","#ff2222"];
+    let r=Math.floor(Math.random()*3);
+    items.push({
+        x:Math.random()*(canvas.width-40),
+        y:Math.random()*(canvas.height-40),
+        w:40,h:40,type:types[r],color:colors[r]
+    });
+    setTimeout(spawnItem,3000);
+}
+
+// 难度
+function setDifficulty(index){diffIndex=index;restart();}
+
+// 敌人
+function spawnEnemy(){
+    if(gameOver||gameWin)return;
+    let d=difficulty[diffIndex];
+    let size=40;
+    let speed=d.speed;
+    let x,y,side=Math.floor(Math.random()*4);
+    if(side===0){x=-size;y=Math.random()*canvas.height;}
+    else if(side===1){x=canvas.width+size;y=Math.random()*canvas.height;}
+    else if(side===2){x=Math.random()*canvas.width;y=-size;}
+    else{x=Math.random()*canvas.width;y=canvas.height+size;}
+    enemies.push({x,y,w:size,h:size,speed});
+    setTimeout(spawnEnemy,d.rate);
+}
+
+// 射击
+canvas.onclick=()=>{
+    if(gameOver||gameWin)return;
+    let px=player.x+25;
+    let py=player.y+25;
+    let dx=mouse.x-px;
+    let dy=mouse.y-py;
+    let dist=Math.hypot(dx,dy);
+    let vx=(dx/dist)*7;
+    let vy=(dy/dist)*7;
+    bullets.push({x:px,y:py,vx,vy});
+    shootSound();
+}
+
+// 移动
+document.onkeydown=(e)=>keys[e.code]=true;
+document.onkeyup=(e)=>keys[e.code]=false;
+
+// 玩家
+function drawPlayer(){
+    ctx.fillStyle=hasShield?"#00aaff":"#00eaff";
+    ctx.fillRect(player.x,player.y,50,50);
+    ctx.fillStyle="#fff";
+    ctx.fillRect(player.x+10,player.y+10,10,10);
+    ctx.fillRect(player.x+30,player.y+10,10,10);
+}
+
+// 吃道具
+function checkItemCollision(){
+    items.forEach((itm,i)=>{
+        if(player.x < itm.x+itm.w && player.x+50 > itm.x && player.y < itm.y+itm.h && player.y+50 > itm.y){
+            itemSound();
+            if(itm.type==="shield"){
+                hasShield=true;
+            }
+            if(itm.type==="speed"){
+                speedBoost=true;
+                setTimeout(()=>{speedBoost=false;updateUI();},5000);
+            }
+            if(itm.type==="bomb"){
+                bombSound();
+                enemies=[];
+            }
+            items.splice(i,1);
+            updateUI();
+        }
+    });
+}
+
+// 通关检测
+function checkWin(){
+    if(score >= 300){
+        gameWin = true;
+        winSound();
+        document.getElementById("win").style.display = "block";
+    }
+}
+
+// ✅========= 在这里改成你自己的主页 ==========
+function goHome(){
+    window.location.href = "index.html";
+}
+
+function update(){
+    if(gameOver||gameWin)return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    stars.forEach(s=>{ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill(); s.x+=s.sp; if(s.x>canvas.width)s.x=0;});
+
+    // 移动
+    let sp=speedBoost?player.speed+3 : player.speed;
+    if(keys["KeyW"]&&player.y>0)player.y-=sp;
+    if(keys["KeyS"]&&player.y<canvas.height-50)player.y+=sp;
+    if(keys["KeyA"]&&player.x>0)player.x-=sp;
+    if(keys["KeyD"]&&player.x<canvas.width-50)player.x+=sp;
+
+    drawPlayer();
+    items.forEach(it=>{ctx.fillStyle=it.color;ctx.fillRect(it.x,it.y,it.w,it.h);});
+
+    // 子弹
+    bullets.forEach((b,i)=>{
+        b.x+=b.vx; b.y+=b.vy;
+        ctx.fillStyle="#00ff88";
+        ctx.beginPath(); ctx.arc(b.x,b.y,4,0,Math.PI*2); ctx.fill();
+        if(b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height)bullets.splice(i,1);
+    });
+
+    // 敌人
+    enemies.forEach((e,i)=>{
+        let dx=player.x-e.x, dy=player.y-e.y, dist=Math.hypot(dx,dy);
+        e.x += (dx/dist)*e.speed;
+        e.y += (dy/dist)*e.speed;
+        ctx.fillStyle="#ff2244"; ctx.fillRect(e.x,e.y,e.w,e.h);
+
+        // 击中
+        bullets.forEach((b,j)=>{
+            if(b.x>e.x&&b.x<e.x+e.w&&b.y>e.y&&b.y<e.y+e.h){
+                enemies.splice(i,1); bullets.splice(j,1); score+=10; hitSound(); updateUI(); checkWin();
+            }
+        });
+
+        // 碰撞
+        if(player.x < e.x+e.w && player.x+50>e.x && player.y<e.y+e.h && player.y+50>e.y){
+            if(hasShield){
+                hasShield=false;
+                enemies.splice(i,1);
+            }else{
+                hp--;
+                hurtSound();
+                enemies.splice(i,1);
+            }
+            updateUI();
+            if(hp<=0){ gameOver=true; document.getElementById("over").style.display="block"; }
+        }
+    });
+
+    checkItemCollision();
+}
+
+// 修复：道具状态完美显示
+function updateUI(){
+    document.getElementById("diffTxt").innerText=difficulty[diffIndex].name;
+    document.getElementById("sc").innerText=score;
+    document.getElementById("hp").innerText=hp;
+    
+    let txt = "无";
+    if(hasShield && speedBoost) txt = "护盾+加速";
+    else if(hasShield) txt = "🛡️护盾已激活";
+    else if(speedBoost) txt = "⚡加速中";
+    else txt = "无";
+    
+    document.getElementById("status").innerText = txt;
+    document.getElementById("final").innerText=score;
+}
+
+function restart(){
+    let d=difficulty[diffIndex];
+    score=0; hp=d.life; gameOver=false; gameWin=false;
+    hasShield=false; speedBoost=false;
+    enemies=[]; bullets=[]; items=[];
+    player.x=canvas.width/2; player.y=canvas.height/2;
+    document.getElementById("over").style.display="none";
+    document.getElementById("win").style.display="none";
+    updateUI();
+}
+
+function loop(){update();requestAnimationFrame(loop);}
+spawnEnemy();spawnItem();loop();updateUI();
+window.onresize=()=>{canvas.width=innerWidth;canvas.height=innerHeight;};
+</script>
+</body>
+</html>

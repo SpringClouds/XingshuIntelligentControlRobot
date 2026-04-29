@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵眸智能机器人｜视觉交互系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #050018, #120a33, #1f1552, #090324);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow: hidden;
+        }
+
+        /* 背景浮动光斑 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+            radial-gradient(circle at 15% 20%, rgba(179,136,235,0.12) 0%, transparent 25%),
+            radial-gradient(circle at 85% 75%, rgba(126,87,194,0.1) 0%, transparent 30%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .robot-wrap {
+            width: 100%;
+            max-width: 920px;
+            height: 93vh;
+            background: rgba(18, 15, 40, 0.85);
+            border-radius: 28px;
+            border: 1px solid rgba(179, 136, 235, 0.35);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 
+            0 0 80px rgba(126, 87, 194, 0.2),
+            inset 0 0 30px rgba(179, 136, 235, 0.08);
+            backdrop-filter: blur(16px);
+            position: relative;
+        }
+
+        /* 顶部流光条 */
+        .robot-wrap::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #7e57c2, #b388eb, #e1a8ff, #b388eb, #7e57c2, transparent);
+            animation: streamLight 4s linear infinite;
+        }
+
+        @keyframes streamLight {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0); }
+        }
+
+        /* 返回按钮高阶美化 */
+        .back-btn {
+            position: absolute;
+            top: 24px;
+            right: 26px;
+            padding: 10px 18px;
+            background: rgba(126, 87, 194, 0.2);
+            border: 1px solid rgba(179, 136, 235, 0.5);
+            border-radius: 14px;
+            color: #e1a8ff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.4s ease;
+            z-index: 99;
+            backdrop-filter: blur(6px);
+        }
+
+        .back-btn:hover {
+            background: rgba(179, 136, 235, 0.35);
+            box-shadow: 0 0 20px rgba(179, 136, 235, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .time-bar {
+            padding: 12px 30px;
+            background: rgba(30, 25, 60, 0.5);
+            border-bottom: 1px solid rgba(179, 136, 235, 0.25);
+            font-size: 14px;
+            color: #cbb8f0;
+            letter-spacing: 1px;
+        }
+
+        /* 主体横向布局 */
+        .robot-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 20px 40px;
+            gap: 30px;
+        }
+
+        /* 左侧：体验说明面板 */
+        .info-panel {
+            width: 280px;
+            background: rgba(35, 28, 65, 0.6);
+            border: 1px solid rgba(179, 136, 235, 0.3);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 25px rgba(126, 87, 194, 0.15);
+        }
+
+        .info-panel h3 {
+            color: #e1a8ff;
+            font-size: 18px;
+            margin-bottom: 18px;
+            text-align: center;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(179,136,235,0.25);
+            padding-bottom: 10px;
+        }
+
+        .info-item {
+            color: #d4c2f5;
+            font-size: 14px;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        /* 右侧机器人区域 */
+        .robot-right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+        }
+
+        /* 机器人头部 高级呼吸+悬浮 */
+        .robot-head {
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, #c49eff, #7e57c2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 
+            0 0 60px rgba(179, 136, 235, 0.6),
+            0 0 120px rgba(126, 87, 194, 0.3),
+            inset 0 0 25px rgba(255,255,255,0.1);
+            animation: breatheHigh 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes breatheHigh {
+            0% { 
+                transform: scale(1) translateY(0);
+                box-shadow: 0 0 60px rgba(179, 136, 235, 0.6), 0 0 120px rgba(126, 87, 194, 0.3);
+            }
+            100% { 
+                transform: scale(1.06) translateY(-6px);
+                box-shadow: 0 0 90px rgba(179, 136, 235, 0.75), 0 0 160px rgba(126, 87, 194, 0.45);
+            }
+        }
+
+        /* 眼睛布局 */
+        .robot-eyes {
+            display: flex;
+            gap: 36px;
+        }
+
+        .eye-item {
+            width: 52px;
+            height: 52px;
+            background: #ffffff;
+            border-radius: 50%;
+            position: relative;
+            transition: transform 0.25s ease-out;
+            box-shadow: 0 0 10px rgba(255,255,255,0.6);
+        }
+
+        /* 瞳孔+高光 更灵动 */
+        .eye-item::after {
+            content: "";
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #111;
+            border-radius: 50%;
+            top: 14px;
+            left: 14px;
+        }
+        .eye-item::before {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            top: 16px;
+            left: 18px;
+            z-index: 2;
+        }
+
+        /* 状态文字 */
+        .robot-status {
+            font-size: 24px;
+            color: #e1a8ff;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(179, 136, 235, 0.5);
+        }
+
+        /* 高级进度条 */
+        .progress-wrap {
+            width: 340px;
+            height: 12px;
+            background: rgba(40, 35, 70, 0.6);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(179, 136, 235, 0.2);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7e57c2, #b388eb, #e1a8ff);
+            border-radius: 20px;
+            transition: width 1.2s ease;
+            box-shadow: 0 0 10px rgba(179, 136, 235, 0.5);
+        }
+
+        /* 机器人表情包轮播图 */
+        .carousel-container {
+            position: relative;
+            width: 200px;
+            height: 120px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(179, 136, 235, 0.4);
+            box-shadow: 0 0 20px rgba(126, 87, 194, 0.2);
+            background: rgba(30,25,60,0.5);
+        }
+        .carousel-slide {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            padding: 10px;
+        }
+        .carousel-slide.active {
+            display: block;
+        }
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(179,136,235,0.3);
+            border: 1px solid #b388eb;
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 10;
+            transition: 0.2s;
+        }
+        .carousel-btn:hover {
+            background: #b388eb;
+            color: #000;
+        }
+        .carousel-prev { left: 6px; }
+        .carousel-next { right: 6px; }
+
+    </style>
+</head>
+
+<body>
+    <div class="robot-wrap">
+        <button class="back-btn" onclick="goBack()">← 返回主界面</button>
+
+        <div class="time-bar" id="timeText">加载时间中...</div>
+
+        <div class="robot-main">
+            <!-- 左侧：交互体验指引面板 -->
+            <div class="info-panel">
+                <h3>💡 交互体验指引</h3>
+                <div class="info-item">1. 移动鼠标左右滑动，观察机器人眼部跟随转动</div>
+                <div class="info-item">2. 静置页面，感受头部自然呼吸浮动光效</div>
+                <div class="info-item">3. 静待片刻，查看系统自动切换不同工作状态</div>
+                <div class="info-item">4. 观察底部动态进度条，模拟系统负载变化</div>
+                <div class="info-item">5. 点击右上角按钮，可一键返回主页面</div>
+            </div>
+
+            <!-- 右侧机器人交互区域 + 新增表情包轮播 -->
+            <div class="robot-right">
+                <div class="robot-head">
+                    <div class="robot-eyes">
+                        <div class="eye-item" id="eyeLeft"></div>
+                        <div class="eye-item" id="eyeRight"></div>
+                    </div>
+                </div>
+
+                <div class="robot-status" id="statusText">🤖 系统待机 · 正常运行</div>
+                
+                <div class="progress-wrap">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <!-- 机器人表情包轮播图 -->
+                <div class="carousel-container" id="carousel">
+                    <img src="images/5.jpg" class="carousel-slide active">
+                    <img src="images/7.jpg" class="carousel-slide">
+                    <img src="images/8.jpg" class="carousel-slide">
+                    <img src="images/6.jpg" class="carousel-slide">
+                    <button class="carousel-btn carousel-prev" onclick="prevSlide()">‹</button>
+                    <button class="carousel-btn carousel-next" onclick="nextSlide()">›</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 直接跳转到主页 index.html
+        function goBack() {
+            window.location.href = "index.html";
+        }
+
+        // 实时时间
+        function updateTime() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const h = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            document.getElementById('timeText').innerText = `${y}-${m}-${day} ${h}:${min}`;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 高精度眼睛跟随鼠标
+        document.addEventListener("mousemove", e => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 26;
+            const y = (e.clientY / window.innerHeight - 0.5) * 26;
+            eyeLeft.style.transform = `translate(${x}px, ${y}px)`;
+            eyeRight.style.transform = `translate(${x}px, ${y}px)`;
+        });
+
+        // 高阶状态轮换
+        const statusList = [
+            "🤖 系统待机 · 正常运行",
+            "💡 环境感知 · 扫描中",
+            "🔍 智能分析 · 运算中",
+            "✨ 情绪同步 · 待命状态",
+            "📡 信号连接 · 通讯正常"
+        ];
+        let idx = 0;
+        setInterval(() => {
+            statusText.innerText = statusList[idx++ % statusList.length];
+            const randomWidth = 55 + Math.random() * 35;
+            progressBar.style.width = randomWidth + "%";
+        }, 2200);
+
+        // 表情包轮播图逻辑
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.carousel-slide');
+        function showSlide(index) {
+            slides.forEach(s => s.classList.remove('active'));
+            currentSlide = (index + slides.length) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }
+        function prevSlide() { showSlide(currentSlide - 1); }
+        function nextSlide() { showSlide(currentSlide + 1); }
+        setInterval(nextSlide, 3000); // 自动轮播
+    </script>
+</body>
+</html>

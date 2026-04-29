@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>星枢智控 · 全息3D机器人</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        overflow: hidden;
+        background: #0a192f;
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    /* 独立悬浮按钮：只切换3D背景 */
+    .bg-switch-btn {
+        position: fixed;
+        top: 80px; /* 下移到标题下方，不遮挡 */
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9998; /* 层级低于标题 */
+        padding: 8px 18px;
+        border-radius: 50px;
+        background: #2baacd;
+        color: #000;
+        font-size: 13px;
+        font-weight: bold;
+        border: 1px solid #00eaff;
+        box-shadow: 0 0 20px #00eaff;
+        cursor: pointer;
+        transition: 0.25s;
+    }
+    .bg-switch-btn:hover {
+        background: #00ffff;
+        box-shadow: 0 0 30px #00eaff;
+    }
+
+    #starCanvas {
+        position: fixed; top:0; left:0; width:100vw; height:100vh; z-index:-2;
+    }
+    #nebCanvas {
+        position: fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; opacity:0.4;
+    }
+    .vignette {
+        position: fixed; top:0; left:0; width:100%; height:100%;
+        background: radial-gradient(circle at center, transparent 60%, #000 160%);
+        pointer-events: none; z-index:10;
+    }
+    .loading {
+        position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        color:white; background:rgba(20, 40, 50, 0.9);
+        padding:24px 40px; border-radius:16px;
+        z-index:999; text-align:center; border:1px solid #00ffff33;
+        box-shadow:0 0 30px #00ffff22; font-size:15px;
+    }
+    .top-title {
+        position: absolute; top:24px; left:50%; transform:translateX(-50%);
+        z-index:9999; color:#fff; background:rgba(0, 150, 180, 0.3);
+        padding:12px 36px;
+        border-radius:50px; backdrop-filter:blur(12px); font-size:1rem;
+        border:1px solid #00eaff;
+        box-shadow:0 0 20px #00eaff44;
+        text-shadow:0 0 10px #00eaff; white-space: nowrap;
+    }
+    .panel {
+        position: absolute; left:20px; top:120px; width:320px;
+        background:rgba(0, 110, 140, 0.25);
+        color:white; border-radius:20px; padding:16px;
+        z-index:40; backdrop-filter:blur(22px);
+        border:1px solid #00eaff;
+        display:flex; flex-direction:column; gap:12px; max-height:75vh; overflow-y:auto;
+        box-shadow:0 0 40px #00eaff44;
+    }
+    .panel h3 {
+        color:#00eaff; font-size:15px; margin-bottom:6px; display:flex; align-items:center; gap:6px;
+    }
+    .sensor-panel {
+        background:rgba(255,255,255,0.08); padding:10px; border-radius:10px; border-left:3px solid #00eaff;
+        font-size:13px; line-height:1.5;
+    }
+    .sensor-item {
+        display:flex; justify-content:space-between; margin:6px 0; padding:6px 8px;
+        background:rgba(0, 100, 130, 0.3); border-radius:6px; border:1px solid #00eaff33;
+    }
+    .sensor-value {
+        color:#00ffcc; font-weight:bold; font-size:13px; text-shadow:0 0 6px #00ffcc;
+    }
+    .emotion {
+        padding:6px 12px; border-radius:30px; display:inline-block; margin-top:6px; font-size:12px;
+        box-shadow:0 0 10px rgba(0,0,0,0.2); font-weight:bold;
+    }
+    .happy { background:#ffd500; color:#000; }
+    .sad { background:#0098ff; color:#fff; }
+    .angry { background:#ff3333; color:#fff; }
+    .calm { background:#00ffcc; color:#000; }
+
+    .emotion-btns {
+        display: flex; gap: 6px; margin-top:8px;
+    }
+    .emotion-btn {
+        padding: 5px 9px; border-radius:8px; font-size:12px; border:none; cursor:pointer;
+        font-weight:bold;
+    }
+
+    .quest-panel {
+        background:rgba(255,255,255,0.08); padding:10px; border-radius:10px; border-left:3px solid #ffd500;
+        font-size:13px; line-height:1.5;
+    }
+    .quest-item {
+        padding:8px; margin:6px 0; background:rgba(0, 100, 130, 0.3); border-radius:6px;
+        border:1px solid #00eaff33;
+    }
+    .quest-title {
+        font-weight:bold; color:#ffd500; display:flex; justify-content:space-between;
+    }
+    .quest-desc {
+        font-size:12px; color:#ccc; margin:4px 0;
+    }
+    .quest-progress {
+        height:4px; background:#112; border-radius:2px; overflow:hidden; margin:4px 0;
+    }
+    .quest-bar {
+        height:100%; width:0%; background:#ffd500; transition:0.3s;
+    }
+    .quest-reward {
+        font-size:11px; color:#00ffcc;
+    }
+    .quest-status {
+        font-size:11px; padding:2px 6px; border-radius:6px;
+    }
+    .status-wait { background:#444; color:#fff; }
+    .status-doing { background:#0098ff; color:#fff; }
+    .status-done { background:#00ffcc; color:#000; }
+
+    .fold-section {
+        border-top:1px solid #00eaff33; padding-top:12px;
+    }
+    .fold-btn {
+        width:100%; background:#00eaff; color:#000; border:none; padding:8px;
+        border-radius:10px; text-align:left; cursor:pointer; font-size:13px; font-weight:bold;
+        transition:0.2s; box-shadow:0 0 10px #00eaff;
+    }
+    .fold-btn:hover { background:#00ffff; box-shadow:0 0 20px #00eaff; }
+    .fold-content {
+        margin-top:10px; background:rgba(0, 100, 130, 0.25); padding:12px; border-radius:10px;
+        font-size:12px; line-height:1.6; display:none; max-height:220px; overflow-y:auto;
+        border:1px solid #00eaff33;
+    }
+    .fold-content p{ margin-bottom:8px; }
+    .fold-content h4 {
+        color:#88ccff; margin:8px 0 4px 0; font-size:13px;
+    }
+
+    .control {
+        position: absolute;
+        right: 20px;
+        top: 120px;
+        width: 200px;
+        background:rgba(0, 110, 140, 0.25);
+        color: white;
+        border-radius: 20px;
+        z-index: 40;
+        backdrop-filter: blur(22px);
+        border: 1px solid #00eaff;
+        box-shadow: 0 0 40px #00eaff44;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .btn {
+        width:100%; padding:9px; border:none; border-radius:10px; background:#00eaff;
+        color:#000; cursor:pointer; transition:0.25s; font-size:13px; font-weight:bold;
+        border:1px solid #00eaff; box-shadow:0 0 15px #00eaff;
+    }
+    .btn:hover { 
+        background:#00ffff; color:#000; 
+        box-shadow:0 0 25px #00eaff; transform: translateY(-1px);
+    }
+    .label { font-size:12px; color:#ccc; margin:6px 0 4px 0; font-weight:bold; }
+    .control-subtitle {
+        font-size:12px; color:#00eaff; margin:8px 0 4px 0; font-weight:bold;
+    }
+
+    .btn-jump {
+        width:100%; padding:9px; border:none; border-radius:10px; 
+        background: #00eaff;
+        color:#000; cursor:pointer; transition:0.25s; font-size:13px; font-weight:bold;
+        border:1px solid #00eaff; box-shadow:0 0 15px #00eaff;
+    }
+    .btn-jump:hover { 
+        background: #00ffff;
+        color:#000; 
+        box-shadow:0 0 25px #00eaff; transform: translateY(-1px);
+    }
+
+    .tips {
+        position: absolute; bottom:24px; left:360px; color:#ccc; font-size:12px;
+        background:rgba(0, 100, 130, 0.3); padding:6px 16px; border-radius:30px; z-index:30;
+        border:1px solid #00eaff33;
+    }
+    .voice-bubble {
+        position: absolute; top:110px; left:50%; transform:translateX(-50%);
+        background:rgba(0, 110, 140, 0.7); color:white; padding:10px 20px; border-radius:24px;
+        border:1px solid #00eaff; backdrop-filter:blur(12px); z-index:60; display:none;
+        max-width:340px; text-align:center; font-size:14px; line-height:1.5;
+        box-shadow:0 0 20px #00eaff44;
+    }
+    .quest-popup {
+        position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        background:rgba(0, 110, 140, 0.9); color:#fff; padding:20px 30px;
+        border-radius:16px; z-index:990; text-align:center;
+        border:2px solid #ffd500; box-shadow:0 0 40px #ffd50033;
+        backdrop-filter:blur(10px); display:none;
+    }
+    .popup-title {
+        font-size:16px; color:#ffd500; font-weight:bold; margin-bottom:10px;
+    }
+    .popup-desc {
+        font-size:13px; margin-bottom:12px;
+    }
+    .popup-reward {
+        font-size:13px; color:#00ffcc; font-weight:bold;
+    }
+    .slider-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 580px; height: 330px;
+        z-index: 20;
+        border-radius: 20px;
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+        border: 2px solid #00eaff;
+        box-shadow: 0 0 60px #00eaff44;
+        display: none;
+    }
+    .slider-slide {
+        width: 100%; height: 100%; object-fit: cover; display: none;
+    }
+    .slider-slide.active { display: block; }
+    .slider-btn {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        background: rgba(0,234,255,0.8); border: 1px solid #00eaff;
+        color: #000; width: 44px; height: 44px; border-radius: 50%;
+        font-size: 18px; cursor: pointer; z-index: 21; transition: 0.2s;
+        box-shadow:0 0 15px #00eaff;
+    }
+    .slider-btn:hover { background: #00ffff; color: #000; }
+    .prev { left: 14px; }
+    .next { right: 14px; }
+    .show-slider { display: block !important; }
+
+    .panel-header {
+        width: 100%; padding: 12px 16px; background: #00eaff; color: #000;
+        border-radius: 20px 20px 0 0; font-size: 14px; font-weight: bold;
+        cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 12px; box-shadow:0 0 10px #00eaff;
+    }
+    .panel-body {
+        display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .float-kefu {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: #00eaff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #002233;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 9999;
+        border: none;
+        box-shadow: 0 0 30px #00eaff;
+    }
+    .float-kefu:hover {
+        transform: scale(1.1);
+        background: #00c8ff;
+    }
+    .kefu-popup {
+        position: fixed;
+        right: 24px;
+        bottom: 90px;
+        width: 420px;
+        background: rgba(0,60,80,0.92);
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(0,200,255,0.4);
+        overflow: hidden;
+        z-index: 9998;
+        display: none;
+        backdrop-filter: blur(12px);
+        border: 1px solid #00eaff;
+    }
+    .popup-header {
+        background: #00eaff;
+        color: #002233;
+        padding: 14px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: bold;
+    }
+    .close-btn {
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .chat-box {
+        height: 400px;
+        padding: 14px;
+        overflow-y: auto;
+        background: transparent;
+    }
+    .msg-item {
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+    .user-msg {
+        text-align: right;
+    }
+    .user-msg span {
+        display: inline-block;
+        background: #00eaff;
+        color: #000;
+        padding: 8px 12px;
+        border-radius: 14px 14px 4px 14px;
+        max-width: 75%;
+        word-wrap: break-word;
+        font-size: 14px;
+    }
+    .ai-msg span {
+        display: inline-block;
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 14px 14px 14px 4px;
+        max-width: 75%;
+        word-wrap: break-word;
+        font-size: 14px;
+        border: 1px solid #00eaff;
+    }
+    .loading span {
+        color: #00eaff;
+        font-style: italic;
+    }
+    .input-area {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+        border-top: 1px solid #00eaff33;
+    }
+    #chatInput {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid #00eaff;
+        border-radius: 30px;
+        outline: none;
+        background: rgba(0,40,60,0.8);
+        color: #fff;
+    }
+    .send-btn {
+        padding: 0 16px;
+        border: none;
+        background: #00eaff;
+        color: #000;
+        border-radius: 30px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow:0 0 10px #00eaff;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="top-title">🤖 星枢智控——全息3D智能机器人交互平台</div>
+<!-- 切换背景按钮：已移动到标题下方 -->
+<button class="bg-switch-btn" onclick="change3DBg()">✨ 全息背景切换</button>
+
+<canvas id="starCanvas"></canvas>
+<canvas id="nebCanvas"></canvas>
+<div class="vignette"></div>
+<div class="loading" id="loading">🤖 正在启动全息系统...</div>
+
+<div class="quest-popup" id="questPopup">
+    <div class="popup-title">✅ 任务完成</div>
+    <div class="popup-desc" id="popupText">恭喜你完成任务！</div>
+    <div class="popup-reward" id="popupReward">获得奖励：电量 +30%</div>
+</div>
+
+<div class="slider-container" id="slider">
+    <img src="images/1.jpg" class="slider-slide active">
+    <img src="images/2.jpg" class="slider-slide">
+    <img src="images/3.jpg" class="slider-slide">
+    <img src="images/4.jpg" class="slider-slide">
+    <button class="slider-btn prev" onclick="prevSlide()">‹</button>
+    <button class="slider-btn next" onclick="nextSlide()">›</button>
+</div>
+
+<div class="panel">
+    <div class="panel-header" onclick="toggleLeftPanel()">
+        📊 机器人数据面板
+        <span id="leftArrow">▼</span>
+    </div>
+    <div class="panel-body" id="leftBody">
+        <div>
+            <h3>📡 实时传感器</h3>
+            <div class="sensor-panel">
+                <div class="sensor-item">
+                    <span>障碍距离：</span><span class="sensor-value" id="distanceVal">0.0 m</span>
+                </div>
+                <div class="sensor-item">
+                    <span>环境温度：</span><span class="sensor-value" id="tempVal">25.0 ℃</span>
+                </div>
+                <div class="sensor-item">
+                    <span>剩余电量：</span><span class="sensor-value" id="batteryVal">98 %</span>
+                </div>
+                <div class="sensor-item">
+                    <span>运行状态：</span><span class="sensor-value" id="motionVal">待机</span>
+                </div>
+                <div class="sensor-item">
+                    <span>避障检测：</span><span class="sensor-value" id="obstacleVal">安全</span>
+                </div>
+                <div class="sensor-item">
+                    <span>实时坐标：</span><span class="sensor-value" id="posVal">X:0 Y:0</span>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3>📋 智能任务系统</h3>
+            <div class="quest-panel" id="questList"></div>
+        </div>
+
+        <div>
+            <h3>🎭 情绪系统（手动控制）</h3>
+            <div id="emotionState" style="font-size:13px; margin-bottom:6px;">当前：平静</div>
+            <div id="emotionTag" class="emotion calm">平静</div>
+            <div class="emotion-btns">
+                <button class="emotion-btn calm" onclick="setEmotion('calm')">平静</button>
+                <button class="emotion-btn happy" onclick="setEmotion('happy')">开心</button>
+                <button class="emotion-btn angry" onclick="setEmotion('angry')">愤怒</button>
+                <button class="emotion-btn sad" onclick="setEmotion('sad')">悲伤</button>
+            </div>
+        </div>
+
+        <div class="fold-section">
+            <button class="fold-btn" onclick="toggleFold()">📘 星枢知识库 ▼</button>
+            <div class="fold-content" id="foldContent">
+                <h4>🧠 核心AI能力</h4>
+                <p>• SLAM 实时定位导航，精度 ±1cm</p>
+                <p>• 动态避障算法，响应 < 0.2s</p>
+                <p>• 多模态情感交互系统</p>
+                <p>• 高精度运动控制</p>
+                <h4>⚙️ 硬件配置</h4>
+                <p>• 主控：ARM + FPGA + NPU 15TOPS</p>
+                <p>• 传感器：激光雷达 + 深度相机</p>
+                <p>• 驱动：高精度伺服舵机</p>
+                <h4>🌍 应用场景</h4>
+                <p>服务 / 工业 / 特种 / 家庭 / 教育</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="control">
+    <span class="label">基础控制</span>
+    <button class="btn" onclick="moveForward()">⬆️ 前进</button>
+    <button class="btn" onclick="moveBackward()">⬇️ 后退</button>
+    <button class="btn" onclick="turnLeft()">⬅️ 左转</button>
+    <button class="btn" onclick="turnRight()">➡️ 右转</button>
+
+    <span class="control-subtitle">智能模式</span>
+    <button class="btn" onclick="startVoiceRecognition()">🎤 语音控制</button>
+    <button class="btn" onclick="startPatrol()">🚶 自动巡逻</button>
+    <button class="btn" onclick="toggleSlider()">📷 机甲萌神</button>
+    <button class="btn" onclick="resetRobot()">↺ 重置状态</button>
+
+    <span class="control-subtitle">星界跳转</span>
+    <button class="btn-jump" onclick="location.href='page2.html'">💠 智能中枢</button>
+    <button class="btn-jump" onclick="location.href='page3.html'">👁️ 深空灵眸</button>
+    <button class="btn-jump" onclick="location.href='game.html'">🎮 灵玩时空</button>
+</div>
+
+<div class="voice-bubble" id="voiceBubble">你好！我是智能全息机器人～</div>
+<div class="tips">👉 点击地面可导航 · 双击可快速定位 | 左侧可查看任务</div>
+
+<div class="float-kefu" id="floatBtn">💬</div>
+<div class="kefu-popup" id="kefuPopup">
+    <div class="popup-header">
+        <span>星枢AI助手</span>
+        <span class="close-btn" id="closeBtn">×</span>
+    </div>
+    <div class="chat-box" id="chatBox">
+        <div class="msg-item ai-msg">
+            <span>你好！我是星枢AI助手，有什么可以帮你？</span>
+        </div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="chatInput" placeholder="输入问题...">
+        <button class="send-btn" id="sendBtn">发送</button>
+    </div>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a192f);
+scene.fog = new THREE.FogExp2(0x0a192f, 0.015);
+
+// 3D背景亮色数组
+let bgIndex = 0;
+const brightColors = [
+  0x0f2c3d,
+  0x0e3a52,
+  0x0c4c6e,
+  0x0a608c,
+  0x0088bb,
+  0x0a192f
+];
+// 只切换3D背景
+window.change3DBg = function() {
+  bgIndex = (bgIndex + 1) % brightColors.length;
+  scene.background.set(brightColors[bgIndex]);
+}
+
+let particles = [];
+for (let i = 0; i < 300; i++) {
+  const p = new THREE.Vector3(
+    (Math.random() - 0.5) * 60,
+    (Math.random() - 0.5) * 20,
+    (Math.random() - 0.5) * 60
+  );
+  particles.push(p);
+}
+const particleGeometry = new THREE.BufferGeometry().setFromPoints(particles);
+const particleMaterial = new THREE.PointsMaterial({
+  color: 0x99bdff,
+  size: 0.08
+});
+const pointCloud = new THREE.Points(particleGeometry, particleMaterial);
+scene.add(pointCloud);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(3.5, 2, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = false;
+controls.minDistance = 2.5;
+controls.maxDistance = 12;
+controls.target.set(0, 0.9, 0);
+
+const light1 = new THREE.AmbientLight(0xffffff, 1.0);
+scene.add(light1);
+const light2 = new THREE.DirectionalLight(0x00eaff, 1.6);
+light2.position.set(6, 8, 5);
+light2.castShadow = true;
+scene.add(light2);
+const light3 = new THREE.PointLight(0x00ff88, 0.8, 10);
+light3.position.set(0,2,0);
+scene.add(light3);
+
+const grid = new THREE.GridHelper(10, 28, 0x00eaff, 0x004466);
+grid.position.y = -1;
+grid.material.opacity = 0.25;
+grid.material.transparent = true;
+scene.add(grid);
+
+const trailPoints = [];
+const maxTrail = 16;
+let trailMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00eaff,
+    transparent: true,
+    opacity: 0.8
+});
+
+let targetMarker = null;
+let markerLight = null;
+
+function createTargetMarker() {
+    const group = new THREE.Group();
+    const ringGeometry = new THREE.RingGeometry(0.15, 0.3, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00eaff,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.01;
+    group.add(ring);
+    
+    const dotGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+    const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x00eaff });
+    const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+    dot.position.y = 0.1;
+    group.add(dot);
+    
+    markerLight = new THREE.PointLight(0x00eaff, 1, 3);
+    markerLight.position.y = 0.5;
+    group.add(markerLight);
+    
+    return group;
+}
+
+function addTrail(x, z) {
+    let dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 12, 12),
+        trailMaterial.clone()
+    );
+    dot.position.set(x, 0.05, z);
+    scene.add(dot);
+    trailPoints.push(dot);
+    
+    if (trailPoints.length > maxTrail) {
+        let old = trailPoints.shift();
+        scene.remove(old);
+    }
+}
+
+function updateTrailOpacity() {
+    trailPoints.forEach((p, i) => {
+        p.material.opacity = 0.8 * (i / maxTrail);
+    });
+}
+
+let robotRoot = new THREE.Group();
+let robotBody = new THREE.Group();
+let robot = null;
+let danceTime = 0;
+let actionTime = 0;
+let emotionTime = 0;
+let currentEmotion = 'calm';
+
+let isNavigating = false;
+let targetPos = null;
+let sensorTimer = null;
+let lastPos = new THREE.Vector3();
+
+let isPatrol = false;
+let patrolPoint = 0;
+const patrolPoints = [
+    new THREE.Vector3(2,0,2), new THREE.Vector3(-2,0,2),
+    new THREE.Vector3(-2,0,-2), new THREE.Vector3(2,0,-2)
+];
+
+let quests = [
+    {id:1,title:"移动训练",desc:"移动机器人5次",type:"move",target:5,current:0,reward:"电量+30%",status:"wait",finished:false},
+    {id:3,title:"导航探索",desc:"导航3次",type:"nav",target:3,current:0,reward:"电量+40%",status:"wait",finished:false},
+    {id:4,title:"智能巡逻",desc:"启动巡逻",type:"patrol",target:1,current:0,reward:"电量+25%",status:"wait",finished:false}
+];
+
+let moveCount = 0;
+let navCount = 0;
+
+scene.add(robotRoot);
+robotRoot.position.y = -0.1;
+robotRoot.add(robotBody);
+
+const loader = new GLTFLoader();
+loader.load(
+    'robot.glb',
+    (gltf) => {
+        robot = gltf.scene;
+        let box = new THREE.Box3().setFromObject(robot);
+        let size = box.getSize(new THREE.Vector3());
+        let maxSize = Math.max(size.x, size.y, size.z);
+        let scale = 1.8 / maxSize;
+        robot.scale.setScalar(scale);
+        let center = box.getCenter(new THREE.Vector3());
+        robot.position.x = -center.x;
+        robot.position.z = -center.z;
+        robot.position.y = -box.min.y * scale;
+        robotBody.add(robot);
+        document.getElementById('loading').style.display = 'none';
+        startSensor();
+        renderQuests();
+    },
+    (xhr) => {
+        const p = Math.round((xhr.loaded / xhr.total) * 100);
+        document.getElementById('loading').innerText = `🤖 系统启动中 ${p}%`;
+    },
+    (err) => {
+        console.error("模型加载失败", err);
+        document.getElementById('loading').innerHTML = "❌ 模型加载失败<br>检查 robot.glb 是否存在";
+    }
+);
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+
+window.addEventListener('click', (e) => {
+    if(!robot) return;
+    if (e.target.closest('.panel') || e.target.closest('.control') || e.target.closest('.btn') || e.target.closest('.slider-container') || e.target.closest('.kefu-popup') || e.target.closest('.float-kefu') || e.target.closest('.bg-switch-btn')) {
+        return;
+    }
+
+    stopAll();
+    isNavigating = true;
+    
+    mouse.x = (e.clientX / innerWidth)*2-1;
+    mouse.y = -(e.clientY / innerHeight)*2+1;
+    raycaster.setFromCamera(mouse, camera);
+    
+    if(!targetPos) targetPos = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, targetPos);
+    
+    if(targetMarker) scene.remove(targetMarker);
+    targetMarker = createTargetMarker();
+    targetMarker.position.copy(targetPos);
+    scene.add(targetMarker);
+    
+    setState("导航中");
+    navCount++;
+    updateQuestProgress("nav", navCount);
+});
+
+function updateNav() {
+    if(!isNavigating || !targetPos) return;
+    const dx = targetPos.x - robotRoot.position.x;
+    const dz = targetPos.z - robotRoot.position.z;
+    const dist = Math.hypot(dx, dz);
+    
+    if(dist < 0.2) {
+        isNavigating = false;
+        setState("已到达");
+        if(targetMarker) {
+            scene.remove(targetMarker);
+            targetMarker = null;
+        }
+        return;
+    }
+    
+    robotRoot.rotation.y = Math.atan2(dx, dz);
+    robotRoot.position.x += dx*0.045;
+    robotRoot.position.z += dz*0.045;
+    robotRoot.position.y = -0.1;
+}
+
+function doAction() {
+    stopAll(); actionTime = 1; setState("动作展示");
+    playBeep(); randomEmotion();
+}
+function doDance() {
+    stopAll(); danceTime = 1; setState("跳舞中");
+    playBeep(); setEmotion("happy");
+}
+
+window.startVoiceRecognition = function() {
+    const cmd = prompt("🎤 语音控制（输入指令）\n支持：前进、后退、左转、右转、巡逻、你好、跳舞、重置","前进");
+    if(!cmd) return;
+    showVoiceBubble("你说：" + cmd);
+    execVoiceCommand(cmd);
+};
+
+function execVoiceCommand(text) {
+    const t = text.trim();
+    if (t.includes('前进')) moveForward();
+    else if (t.includes('后退')) moveBackward();
+    else if (t.includes('左转')) turnLeft();
+    else if (t.includes('右转')) turnRight();
+    else if (t.includes('跳舞')) doDance();
+    else if (t.includes('巡逻')) startPatrol();
+    else if (t.includes('重置')) resetRobot();
+    else if (t.includes('你好') || t.includes('哈喽')) {
+        showVoiceBubble("你好呀！我是星枢智控机器人😊");
+    } else {
+        showVoiceBubble("我听不懂哦~ 试：前进、巡逻、你好");
+    }
+}
+
+function speak(text) {
+    try {
+        const u = new SpeechSynthesisUtterance();
+        u.text = text;
+        u.lang = 'zh-CN';
+        window.speechSynthesis.speak(u);
+    } catch(e) {}
+}
+
+function showVoiceBubble(msg) {
+    const b = document.getElementById('voiceBubble');
+    b.innerText = msg;
+    b.style.display = 'block';
+    setTimeout(() => b.style.display = 'none', 3000);
+}
+
+function startSensor() {
+    if(sensorTimer) clearInterval(sensorTimer);
+    sensorTimer = setInterval(()=>{
+        if(!robot) return;
+        document.getElementById('tempVal').innerText = (25 + (Math.random()-0.5)*2).toFixed(1)+' ℃';
+        let bat = parseInt(document.getElementById('batteryVal').innerText);
+        const act = isNavigating || danceTime>0 || actionTime>0 || isPatrol || emotionTime>0;
+        bat = Math.max(10, Math.min(100, bat + (act?-0.12:0.06)));
+        document.getElementById('batteryVal').innerText = bat|0 + '%';
+        if(bat < 20){
+            document.getElementById('obstacleVal').innerText = "⚠️ 低电量";
+            document.getElementById('obstacleVal').style.color = '#ff3333';
+        } else {
+            document.getElementById('obstacleVal').innerText = "✅ 安全";
+            document.getElementById('obstacleVal').style.color = '#00ff88';
+        }
+        document.getElementById('posVal').innerText = `X:${robotRoot.position.x.toFixed(1)} Y:${robotRoot.position.z.toFixed(1)}`;
+    }, 400);
+}
+
+function setState(s) { document.getElementById('motionVal').innerText = s; }
+function stopAll() {
+    isNavigating=false; danceTime=0; actionTime=0; isPatrol=false; emotionTime=0;
+    robotBody.rotation.set(0,0,0); robotRoot.rotation.z = 0;
+    if(targetMarker) { scene.remove(targetMarker); targetMarker = null; }
+}
+
+window.moveForward = ()=>{
+    stopAll();
+    const rad = robotRoot.rotation.y;
+    robotRoot.position.x -= Math.sin(rad) * 0.35;
+    robotRoot.position.z -= Math.cos(rad) * 0.35;
+    limitRobotInMap();
+    setState("前进");
+    moveCount++; updateQuestProgress("move", moveCount);
+};
+window.moveBackward = ()=>{
+    stopAll();
+    const rad = robotRoot.rotation.y;
+    robotRoot.position.x += Math.sin(rad) * 0.35;
+    robotRoot.position.z += Math.cos(rad) * 0.35;
+    limitRobotInMap();
+    setState("后退");
+    moveCount++; updateQuestProgress("move", moveCount);
+};
+window.turnLeft = ()=>{
+    stopAll();
+    robotRoot.rotation.y += 0.28;
+    setState("左转");
+    moveCount++; updateQuestProgress("move", moveCount);
+};
+window.turnRight = ()=>{
+    stopAll();
+    robotRoot.rotation.y -= 0.28;
+    setState("右转");
+    moveCount++; updateQuestProgress("move", moveCount);
+};
+
+window.resetRobot = ()=>{
+    stopAll(); robotRoot.position.set(0,-0.1,0); robotRoot.rotation.set(0,0,0);
+    robotBody.rotation.set(0,0,0); setState("待机"); setEmotion("calm");
+    document.getElementById('voiceBubble').style.display='none';
+    trailPoints.forEach(p => scene.remove(p)); trailPoints.length = 0;
+};
+
+window.toggleFold = ()=>{
+    const c = document.getElementById('foldContent');
+    const b = document.querySelector('.fold-btn');
+    c.style.display = c.style.display=='block'?'none':'block';
+    b.innerText = c.style.display=='block'?'📘 星枢知识库 ▲':'📘 星枢知识库 ▼';
+};
+
+function limitRobotInMap(){
+    robotRoot.position.y = -0.1;
+    if(Math.abs(robotRoot.position.x) > 4.5) robotRoot.position.x = Math.sign(robotRoot.position.x)*4.5;
+    if(Math.abs(robotRoot.position.z) > 4.5) robotRoot.position.z = Math.sign(robotRoot.position.z)*4.5;
+}
+
+window.setEmotion = function(mode){
+    if (emotionTime > 0) return;
+    stopAll();
+    emotionTime = 1;
+    currentEmotion = mode;
+
+    const tag = document.getElementById('emotionTag');
+    const text = document.getElementById('emotionState');
+    tag.className = 'emotion ' + mode;
+
+    if(mode==='calm'){ 
+        tag.innerText='平静'; text.innerText='当前：平静'; 
+        setState("平静待机");
+    }
+    if(mode==='happy'){ 
+        tag.innerText='开心'; text.innerText='当前：开心'; 
+        setState("开心转圈");
+    }
+    if(mode==='angry'){ 
+        tag.innerText='愤怒'; text.innerText='当前：愤怒'; 
+        setState("愤怒震动");
+    }
+    if(mode==='sad'){ 
+        tag.innerText='悲伤'; text.innerText='当前：悲伤'; 
+        setState("悲伤低头");
+    }
+    playBeep();
+};
+
+function updateEmotion() {
+    if (emotionTime <= 0) return;
+    emotionTime += 0.2;
+
+    switch(currentEmotion) {
+        case 'happy':
+            robotRoot.rotation.y += 0.05;
+            robotBody.rotation.x = Math.sin(emotionTime * 0.8) * 0.25;
+            break;
+        case 'angry':
+            robotBody.rotation.x = 0.25;
+            robotRoot.rotation.z = Math.sin(emotionTime * 1.2) * 0.15;
+            break;
+        case 'sad':
+            robotBody.rotation.x = 0.45;
+            robotRoot.rotation.z = Math.sin(emotionTime * 0.5) * 0.08;
+            break;
+        case 'calm':
+        default:
+            robotBody.rotation.x *= 0.9;
+            robotRoot.rotation.z *= 0.9;
+            break;
+    }
+
+    if (emotionTime > 3) {
+        emotionTime = 0;
+        currentEmotion = 'calm';
+    }
+}
+
+function getCurrentEmotion(){
+    const tag = document.getElementById('emotionTag');
+    if(tag.classList.contains('happy')) return 'happy';
+    if(tag.classList.contains('angry')) return 'angry';
+    if(tag.classList.contains('sad')) return 'sad';
+    return 'calm';
+}
+function randomEmotion(){
+    const list = ['calm','happy','calm'];
+    setEmotion(list[Math.floor(Math.random()*list.length)]);
+}
+
+function playBeep(){ try{ let a = new AudioContext(); let o = a.createOscillator(); let g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 800; o.start(); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+0.15); o.stop(a.currentTime+0.15); }catch(e){} }
+
+window.startPatrol = ()=>{ 
+  stopAll(); 
+  isPatrol = true; 
+  patrolPoint = 0; 
+  setState("自动巡逻"); 
+  updateQuestProgress("patrol", 1); 
+};
+
+function updatePatrol(){
+    if(!isPatrol || !robot) return;
+    const p = patrolPoints[patrolPoint];
+    const dx = p.x - robotRoot.position.x;
+    const dz = p.z - robotRoot.position.z;
+    const d = Math.hypot(dx, dz);
+    
+    if (d < 0.4) {
+        patrolPoint = (patrolPoint + 1) % 4;
+        return;
+    }
+    
+    robotRoot.rotation.y = Math.atan2(dx, dz);
+    robotRoot.position.x += dx * 0.04;
+    robotRoot.position.z += dz * 0.04;
+    robotRoot.position.y = -0.1;
+}
+
+function renderQuests(){
+    const container = document.getElementById('questList');
+    container.innerHTML = '';
+    quests.forEach(q => {
+        let percent = Math.min(100, (q.current/q.target)*100);
+        let statusText = q.status==='wait'?'未开始':q.status==='doing'?'进行中':'已完成';
+        container.innerHTML += `
+        <div class="quest-item">
+            <div class="quest-title">${q.title}<span class="quest-status status-${q.status}">${statusText}</span></div>
+            <div class="quest-desc">${q.desc}</div>
+            <div class="quest-progress"><div class="quest-bar" style="width:${percent}%"></div></div>
+            <div class="quest-reward">奖励：${q.reward}</div>
+        </div>`;
+    });
+}
+
+window.toggleLeftPanel = function() {
+    const body = document.getElementById('leftBody');
+    const arrow = document.getElementById('leftArrow');
+    if (body.style.display === 'none') {
+        body.style.display = 'flex';
+        arrow.innerText = '▼';
+    } else {
+        body.style.display = 'none';
+        arrow.innerText = '▶';
+    }
+}
+
+function updateQuestProgress(type, value){
+    let q = quests.find(i=>i.type===type && !i.finished);
+    if(!q) return;
+    q.status = "doing"; q.current = value;
+    if(q.current >= q.target){ q.current = q.target; q.status = "done"; q.finished = true; finishQuest(q); }
+    renderQuests();
+}
+
+function finishQuest(quest){
+    playBeep();
+    let bat = parseInt(document.getElementById('batteryVal').innerText);
+    bat = Math.min(100, bat + 30);
+    document.getElementById('batteryVal').innerText = bat + '%';
+    showQuestPopup(quest);
+}
+
+function showQuestPopup(quest){
+    const pop = document.getElementById('questPopup');
+    document.getElementById('popupText').innerText = `恭喜完成任务：${quest.title}`;
+    document.getElementById('popupReward').innerText = `奖励：${quest.reward}`;
+    pop.style.display = 'block';
+    setTimeout(()=>pop.style.display='none', 2500);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    limitRobotInMap();
+    
+    if (robot && robotRoot.position.distanceTo(lastPos) > 0.12) { 
+        addTrail(robotRoot.position.x, robotRoot.position.z); 
+        lastPos.copy(robotRoot.position); 
+    }
+    updateTrailOpacity();
+    
+    if(robot && danceTime>0) { 
+        danceTime+=0.22; 
+        robotBody.rotation.x = Math.sin(danceTime)*0.45; 
+        robotRoot.rotation.y += 0.024; 
+        robotRoot.rotation.z = Math.sin(danceTime*0.7)*0.25; 
+        if(danceTime>60) danceTime=0; 
+    }
+    else if(robot && actionTime>0) { 
+        actionTime+=0.2; 
+        robotBody.rotation.x = Math.sin(actionTime*0.6)*0.2; 
+        robotBody.rotation.z = Math.sin(actionTime*0.5)*0.15; 
+        if(actionTime>40) actionTime=0; 
+    }
+    else if(emotionTime>0) {
+        updateEmotion();
+    }
+    else if(isPatrol) { 
+        updatePatrol(); 
+    } 
+    else if(isNavigating) { 
+        updateNav(); 
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+
+<script>
+const APP_ID = "f07dd9dfdee24704832d4d3694d06e73";
+const API_KEY = "sk-7eac5811fa044ee3a233a68637778d62";
+
+const floatBtn = document.getElementById('floatBtn');
+const kefuPopup = document.getElementById('kefuPopup');
+const closeBtn = document.getElementById('closeBtn');
+const sendBtn = document.getElementById('sendBtn');
+const chatInput = document.getElementById('chatInput');
+const chatBox = document.getElementById('chatBox');
+
+floatBtn.onclick = () => { kefuPopup.style.display = 'block'; }
+closeBtn.onclick = () => { kefuPopup.style.display = 'none'; }
+
+async function sendMessage() {
+    let text = chatInput.value.trim();
+    if (!text) return;
+
+    chatBox.innerHTML += `<div class="msg-item user-msg"><span>${text}</span></div>`;
+    chatInput.value = "";
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    let load = document.createElement("div");
+    load.className = "msg-item ai-msg loading";
+    load.innerHTML = "<span>AI思考中...</span>";
+    chatBox.appendChild(load);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+        let res = await fetch("https://dashscope.aliyuncs.com/api/v1/apps/"+APP_ID+"/completion", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + API_KEY
+            },
+            body: JSON.stringify({ input: { prompt: text } })
+        });
+        let data = await res.json();
+        chatBox.removeChild(load);
+        let replyText = data.output.text;
+        chatBox.innerHTML += `<div class="msg-item ai-msg"><span>${replyText}</span></div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // 新增：AI语音朗读回复
+        voiceSpeak(replyText);
+
+    } catch (e) {
+        chatBox.removeChild(load);
+        chatBox.innerHTML += `<div class="msg-item ai-msg"><span>连接失败，请检查密钥</span></div>`;
+    }
+}
+
+// 语音朗读函数
+function voiceSpeak(text) {
+    // 先停止正在播放的语音
+    window.speechSynthesis.cancel();
+    // 创建语音实例
+    let utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "zh-CN";      // 中文
+    utter.rate = 1;            // 语速 1正常
+    utter.pitch = 1;           // 音调
+    window.speechSynthesis.speak(utter);
+}
+
+sendBtn.onclick = sendMessage;
+chatInput.onkeydown = e => e.key === 'Enter' && sendMessage();
+
+let currentSlide = 0;
+const slides = document.querySelectorAll('.slider-slide');
+function showSlide(index) {
+    slides.forEach(s => s.classList.remove('active'));
+    currentSlide = (index + slides.length) % slides.length;
+    slides[currentSlide].classList.add('active');
+}
+function prevSlide() { showSlide(currentSlide - 1); }
+function nextSlide() { showSlide(currentSlide + 1); }
+function toggleSlider() {
+    const slider = document.getElementById('slider');
+    slider.classList.toggle('show-slider');
+}
+setInterval(nextSlide, 3000);
+
+const star=document.getElementById('starCanvas');
+const starCtx=star.getContext('2d');
+star.width=innerWidth; star.height=innerHeight;
+let stars=Array.from({length:300},()=>({
+    x:Math.random()*innerWidth, y:Math.random()*innerHeight,
+    r:Math.random()*1.5, speed:Math.random()*0.2+0.05
+}));
+function drawStars(){
+    starCtx.fillStyle='#02040a';
+    starCtx.fillRect(0,0,innerWidth,innerHeight);
+    stars.forEach(s=>{
+        starCtx.beginPath();
+        starCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        starCtx.fillStyle='rgba(255,255,255,.7)';
+        starCtx.fill();
+        s.x+=s.speed;
+        if(s.x>innerWidth)s.x=0;
+    });
+    requestAnimationFrame(drawStars);
+}
+drawStars();
+
+const neb=document.getElementById('nebCanvas');
+const nebCtx=neb.getContext('2d');
+neb.width=innerWidth; neb.height=innerHeight;
+function drawNebula(){
+    nebCtx.clearRect(0,0,innerWidth,innerHeight);
+    const g=nebCtx.createRadialGradient(innerWidth/2,innerHeight/2,0,innerWidth/2,innerHeight/2,innerWidth/1.8);
+    g.addColorStop(0,'rgba(0,200,255,0.05)');
+    g.addColorStop(1,'rgba(0,50,100,0)');
+    nebCtx.fillStyle=g;
+    nebCtx.fillRect(0,0,innerWidth,innerHeight);
+    requestAnimationFrame(drawNebula);
+}
+drawNebula();
+</script>
+
+</body>
+</html>
