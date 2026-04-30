@@ -15,13 +15,12 @@
         background: #0a192f;
         font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
-    /* 独立悬浮按钮：只切换3D背景 */
     .bg-switch-btn {
         position: fixed;
-        top: 80px; /* 下移到标题下方，不遮挡 */
+        top: 80px;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 9998; /* 层级低于标题 */
+        z-index: 9998;
         padding: 8px 18px;
         border-radius: 50px;
         background: #2baacd;
@@ -48,13 +47,6 @@
         position: fixed; top:0; left:0; width:100%; height:100%;
         background: radial-gradient(circle at center, transparent 60%, #000 160%);
         pointer-events: none; z-index:10;
-    }
-    .loading {
-        position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        color:white; background:rgba(20, 40, 50, 0.9);
-        padding:24px 40px; border-radius:16px;
-        z-index:999; text-align:center; border:1px solid #00ffff33;
-        box-shadow:0 0 30px #00ffff22; font-size:15px;
     }
     .top-title {
         position: absolute; top:24px; left:50%; transform:translateX(-50%);
@@ -154,12 +146,13 @@
         color:#88ccff; margin:8px 0 4px 0; font-size:13px;
     }
 
+    /* ========== 右侧面板统一改成左侧柔和风格 ========== */
     .control {
         position: absolute;
         right: 20px;
         top: 120px;
         width: 200px;
-        background:rgba(0, 110, 140, 0.25);
+        background:rgba(0, 110, 140, 0.25); /* 和左边完全一致 */
         color: white;
         border-radius: 20px;
         z-index: 40;
@@ -171,30 +164,32 @@
         flex-direction: column;
         gap: 8px;
     }
-    .btn {
-        width:100%; padding:9px; border:none; border-radius:10px; background:#00eaff;
-        color:#000; cursor:pointer; transition:0.25s; font-size:13px; font-weight:bold;
-        border:1px solid #00eaff; box-shadow:0 0 15px #00eaff;
+    /* 统一按钮样式：柔和半透明，不刺眼 */
+    .btn, .btn-jump {
+        width:100%;
+        padding:9px;
+        border:none;
+        border-radius:10px;
+        background: rgba(0, 170, 210, 0.3); /* 柔和背景 */
+        color: #00eaff; /* 文字用荧光色 */
+        cursor:pointer;
+        transition:0.25s;
+        font-size:13px;
+        font-weight:bold;
+        border: 1px solid #00eaff;
+        box-shadow: none; /* 去掉强光阴影 */
     }
-    .btn:hover { 
-        background:#00ffff; color:#000; 
-        box-shadow:0 0 25px #00eaff; transform: translateY(-1px);
-    }
-    .label { font-size:12px; color:#ccc; margin:6px 0 4px 0; font-weight:bold; }
-    .control-subtitle {
-        font-size:12px; color:#00eaff; margin:8px 0 4px 0; font-weight:bold;
+    /* 悬浮效果也柔和 */
+    .btn:hover, .btn-jump:hover { 
+        background: rgba(0, 170, 210, 0.5);
+        color: #00ffff;
+        box-shadow: 0 0 10px #00eaff33;
+        transform: translateY(-1px);
     }
 
-    .btn-jump {
-        width:100%; padding:9px; border:none; border-radius:10px; 
-        background: #00eaff;
-        color:#000; cursor:pointer; transition:0.25s; font-size:13px; font-weight:bold;
-        border:1px solid #00eaff; box-shadow:0 0 15px #00eaff;
-    }
-    .btn-jump:hover { 
-        background: #00ffff;
-        color:#000; 
-        box-shadow:0 0 25px #00eaff; transform: translateY(-1px);
+    .label { font-size:12px; color:#ccc; margin:6px 0 4px; font-weight:bold; }
+    .control-subtitle {
+        font-size:12px; color:#00eaff; margin:8px 0 4px; font-weight:bold;
     }
 
     .tips {
@@ -257,7 +252,7 @@
 
     .panel-header {
         width: 100%; padding: 12px 16px; background: #00eaff; color: #000;
-        border-radius: 20px 20px 0 0; font-size: 14px; font-weight: bold;
+        border-radius: 20px 20px 0 0; font-size: 14px; font-weight:bold;
         cursor: pointer; display: flex; justify-content: space-between; align-items: center;
         margin-bottom: 12px; box-shadow:0 0 10px #00eaff;
     }
@@ -384,13 +379,11 @@
 <body>
 
 <div class="top-title">🤖 星枢智控——全息3D智能机器人交互平台</div>
-<!-- 切换背景按钮：已移动到标题下方 -->
 <button class="bg-switch-btn" onclick="change3DBg()">✨ 全息背景切换</button>
 
 <canvas id="starCanvas"></canvas>
 <canvas id="nebCanvas"></canvas>
 <div class="vignette"></div>
-<div class="loading" id="loading">🤖 正在启动全息系统...</div>
 
 <div class="quest-popup" id="questPopup">
     <div class="popup-title">✅ 任务完成</div>
@@ -526,28 +519,28 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// 柔和明亮护眼背景
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a192f);
-scene.fog = new THREE.FogExp2(0x0a192f, 0.015);
+scene.background = new THREE.Color(0x0c1a30);
+scene.fog = new THREE.FogExp2(0x0c1a30, 0.010);
 
-// 3D背景亮色数组
 let bgIndex = 0;
 const brightColors = [
-  0x0f2c3d,
-  0x0e3a52,
-  0x0c4c6e,
-  0x0a608c,
-  0x0088bb,
-  0x0a192f
+  0x103a6a,
+  0x154477,
+  0x1a4e84,
+  0x1f5891,
+  0x24629e,
+  0x103a6a
 ];
-// 只切换3D背景
 window.change3DBg = function() {
   bgIndex = (bgIndex + 1) % brightColors.length;
   scene.background.set(brightColors[bgIndex]);
 }
 
+// 柔和星光
 let particles = [];
-for (let i = 0; i < 300; i++) {
+for (let i = 0; i < 220; i++) {
   const p = new THREE.Vector3(
     (Math.random() - 0.5) * 60,
     (Math.random() - 0.5) * 20,
@@ -557,8 +550,8 @@ for (let i = 0; i < 300; i++) {
 }
 const particleGeometry = new THREE.BufferGeometry().setFromPoints(particles);
 const particleMaterial = new THREE.PointsMaterial({
-  color: 0x99bdff,
-  size: 0.08
+  color: 0x88b8dd,
+  size: 0.07
 });
 const pointCloud = new THREE.Points(particleGeometry, particleMaterial);
 scene.add(pointCloud);
@@ -578,19 +571,21 @@ controls.minDistance = 2.5;
 controls.maxDistance = 12;
 controls.target.set(0, 0.9, 0);
 
-const light1 = new THREE.AmbientLight(0xffffff, 1.0);
+// 柔和不刺眼的灯光
+const light1 = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(light1);
-const light2 = new THREE.DirectionalLight(0x00eaff, 1.6);
+const light2 = new THREE.DirectionalLight(0x00eaff, 0.9);
 light2.position.set(6, 8, 5);
 light2.castShadow = true;
 scene.add(light2);
-const light3 = new THREE.PointLight(0x00ff88, 0.8, 10);
+const light3 = new THREE.PointLight(0x00ff88, 0.5, 10);
 light3.position.set(0,2,0);
 scene.add(light3);
 
-const grid = new THREE.GridHelper(10, 28, 0x00eaff, 0x004466);
+// 淡色网格
+const grid = new THREE.GridHelper(10, 28, 0x0088aa, 0x003344);
 grid.position.y = -1;
-grid.material.opacity = 0.25;
+grid.material.opacity = 0.2;
 grid.material.transparent = true;
 scene.add(grid);
 
@@ -599,7 +594,7 @@ const maxTrail = 16;
 let trailMaterial = new THREE.MeshBasicMaterial({
     color: 0x00eaff,
     transparent: true,
-    opacity: 0.8
+    opacity: 0.65
 });
 
 let targetMarker = null;
@@ -611,7 +606,7 @@ function createTargetMarker() {
     const ringMaterial = new THREE.MeshBasicMaterial({
         color: 0x00eaff,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.5,
         side: THREE.DoubleSide
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
@@ -625,7 +620,7 @@ function createTargetMarker() {
     dot.position.y = 0.1;
     group.add(dot);
     
-    markerLight = new THREE.PointLight(0x00eaff, 1, 3);
+    markerLight = new THREE.PointLight(0x00eaff, 0.7, 3);
     markerLight.position.y = 0.5;
     group.add(markerLight);
     
@@ -649,7 +644,7 @@ function addTrail(x, z) {
 
 function updateTrailOpacity() {
     trailPoints.forEach((p, i) => {
-        p.material.opacity = 0.8 * (i / maxTrail);
+        p.material.opacity = 0.65 * (i / maxTrail);
     });
 }
 
@@ -687,6 +682,8 @@ robotRoot.position.y = -0.1;
 robotRoot.add(robotBody);
 
 const loader = new GLTFLoader();
+loader.crossOrigin = "anonymous";
+
 loader.load(
     'robot.glb',
     (gltf) => {
@@ -701,17 +698,13 @@ loader.load(
         robot.position.z = -center.z;
         robot.position.y = -box.min.y * scale;
         robotBody.add(robot);
-        document.getElementById('loading').style.display = 'none';
+
         startSensor();
         renderQuests();
     },
-    (xhr) => {
-        const p = Math.round((xhr.loaded / xhr.total) * 100);
-        document.getElementById('loading').innerText = `🤖 系统启动中 ${p}%`;
-    },
+    (xhr) => {},
     (err) => {
         console.error("模型加载失败", err);
-        document.getElementById('loading').innerHTML = "❌ 模型加载失败<br>检查 robot.glb 是否存在";
     }
 );
 
@@ -777,19 +770,18 @@ function doDance() {
 }
 
 window.startVoiceRecognition = function() {
-    const cmd = prompt("🎤 语音控制（输入指令）\n支持：前进、后退、左转、右转、巡逻、你好、跳舞、重置","前进");
+    const cmd = prompt("🎤 语音控制（输入指令）\n支持：前进、后退、左转、右转、巡逻、重置","前进");
     if(!cmd) return;
     showVoiceBubble("你说：" + cmd);
     execVoiceCommand(cmd);
 };
 
-function execVoiceCommand(text) {
-    const t = text.trim();
+function execVoiceCommand(cmd) {
+    const t = cmd.trim();
     if (t.includes('前进')) moveForward();
     else if (t.includes('后退')) moveBackward();
     else if (t.includes('左转')) turnLeft();
     else if (t.includes('右转')) turnRight();
-    else if (t.includes('跳舞')) doDance();
     else if (t.includes('巡逻')) startPatrol();
     else if (t.includes('重置')) resetRobot();
     else if (t.includes('你好') || t.includes('哈喽')) {
@@ -799,13 +791,24 @@ function execVoiceCommand(text) {
     }
 }
 
-function speak(text) {
+window.voiceSpeak = function(text){
+    if(!text) return;
     try {
+        window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance();
         u.text = text;
         u.lang = 'zh-CN';
+        u.volume = 1;
+        u.rate = 1;
         window.speechSynthesis.speak(u);
-    } catch(e) {}
+    } catch(e){}
+};
+
+// 立刻停止所有语音播报（关闭AI时调用）
+window.stopVoice = function() {
+    try {
+        window.speechSynthesis.cancel();
+    } catch (e) {}
 }
 
 function showVoiceBubble(msg) {
@@ -842,35 +845,52 @@ function stopAll() {
     if(targetMarker) { scene.remove(targetMarker); targetMarker = null; }
 }
 
-window.moveForward = ()=>{
-    stopAll();
-    const rad = robotRoot.rotation.y;
-    robotRoot.position.x -= Math.sin(rad) * 0.35;
-    robotRoot.position.z -= Math.cos(rad) * 0.35;
+let isMoving = false;
+const MOVE_DURATION = 600;
+
+async function smoothMove(stepFn) {
+  if (isMoving) return;
+  isMoving = true;
+  const start = performance.now();
+
+  while (performance.now() - start < MOVE_DURATION) {
+    stepFn();
     limitRobotInMap();
-    setState("前进");
-    moveCount++; updateQuestProgress("move", moveCount);
+    await new Promise(r => requestAnimationFrame(r));
+  }
+  isMoving = false;
+}
+
+window.moveForward = async () => {
+  stopAll(); setState("前进");
+  const rad = robotRoot.rotation.y;
+  await smoothMove(() => {
+    robotRoot.position.x -= Math.sin(rad) * 0.018;
+    robotRoot.position.z -= Math.cos(rad) * 0.018;
+  });
+  moveCount++; updateQuestProgress("move", moveCount);
 };
-window.moveBackward = ()=>{
-    stopAll();
-    const rad = robotRoot.rotation.y;
-    robotRoot.position.x += Math.sin(rad) * 0.35;
-    robotRoot.position.z += Math.cos(rad) * 0.35;
-    limitRobotInMap();
-    setState("后退");
-    moveCount++; updateQuestProgress("move", moveCount);
+
+window.moveBackward = async () => {
+  stopAll(); setState("后退");
+  const rad = robotRoot.rotation.y;
+  await smoothMove(() => {
+    robotRoot.position.x += Math.sin(rad) * 0.018;
+    robotRoot.position.z += Math.cos(rad) * 0.018;
+  });
+  moveCount++; updateQuestProgress("move", moveCount);
 };
-window.turnLeft = ()=>{
-    stopAll();
-    robotRoot.rotation.y += 0.28;
-    setState("左转");
-    moveCount++; updateQuestProgress("move", moveCount);
+
+window.turnLeft = async () => {
+  stopAll(); setState("左转");
+  await smoothMove(() => { robotRoot.rotation.y += 0.014; });
+  moveCount++; updateQuestProgress("move", moveCount);
 };
-window.turnRight = ()=>{
-    stopAll();
-    robotRoot.rotation.y -= 0.28;
-    setState("右转");
-    moveCount++; updateQuestProgress("move", moveCount);
+
+window.turnRight = async () => {
+  stopAll(); setState("右转");
+  await smoothMove(() => { robotRoot.rotation.y -= 0.014; });
+  moveCount++; updateQuestProgress("move", moveCount);
 };
 
 window.resetRobot = ()=>{
@@ -894,8 +914,7 @@ function limitRobotInMap(){
 }
 
 window.setEmotion = function(mode){
-    if (emotionTime > 0) return;
-    stopAll();
+    stopAll(); // 先停止所有动作
     emotionTime = 1;
     currentEmotion = mode;
 
@@ -904,52 +923,61 @@ window.setEmotion = function(mode){
     tag.className = 'emotion ' + mode;
 
     if(mode==='calm'){ 
-        tag.innerText='平静'; text.innerText='当前：平静'; 
-        setState("平静待机");
+        tag.innerText='平静'; 
+        text.innerText='当前：平静'; 
+        setState("平静待机"); 
     }
     if(mode==='happy'){ 
-        tag.innerText='开心'; text.innerText='当前：开心'; 
-        setState("开心转圈");
+        tag.innerText='开心'; 
+        text.innerText='当前：开心'; 
+        setState("开心转圈"); 
+        // 自动循环跳舞动作
+        danceTime = 1; 
     }
     if(mode==='angry'){ 
-        tag.innerText='愤怒'; text.innerText='当前：愤怒'; 
-        setState("愤怒震动");
+        tag.innerText='愤怒'; 
+        text.innerText='当前：愤怒'; 
+        setState("愤怒震动"); 
+        // 自动循环愤怒动作
+        actionTime = 1; 
     }
     if(mode==='sad'){ 
-        tag.innerText='悲伤'; text.innerText='当前：悲伤'; 
-        setState("悲伤低头");
+        tag.innerText='悲伤'; 
+        text.innerText='当前：悲伤'; 
+        setState("悲伤低头"); 
     }
     playBeep();
 };
 
 function updateEmotion() {
     if (emotionTime <= 0) return;
-    emotionTime += 0.2;
 
-    switch(currentEmotion) {
-        case 'happy':
-            robotRoot.rotation.y += 0.05;
-            robotBody.rotation.x = Math.sin(emotionTime * 0.8) * 0.25;
-            break;
-        case 'angry':
-            robotBody.rotation.x = 0.25;
-            robotRoot.rotation.z = Math.sin(emotionTime * 1.2) * 0.15;
-            break;
-        case 'sad':
-            robotBody.rotation.x = 0.45;
-            robotRoot.rotation.z = Math.sin(emotionTime * 0.5) * 0.08;
-            break;
-        case 'calm':
-        default:
-            robotBody.rotation.x *= 0.9;
-            robotRoot.rotation.z *= 0.9;
-            break;
+    // 持续循环动作
+    if (currentEmotion === 'happy') {
+        danceTime += 0.22;
+        robotBody.rotation.x = Math.sin(danceTime) * 0.45;
+        robotRoot.rotation.y += 0.024;
+        robotRoot.rotation.z = Math.sin(danceTime * 0.7) * 0.25;
+        return;
     }
 
-    if (emotionTime > 3) {
-        emotionTime = 0;
-        currentEmotion = 'calm';
+    if (currentEmotion === 'angry') {
+        actionTime += 0.2;
+        robotBody.rotation.x = Math.sin(actionTime * 0.6) * 0.2;
+        robotBody.rotation.z = Math.sin(actionTime * 0.5) * 0.15;
+        return;
     }
+
+    if (currentEmotion === 'sad') {
+        robotBody.rotation.x = 0.45;
+        robotRoot.rotation.z = Math.sin(emotionTime * 0.5) * 0.08;
+        emotionTime += 0.2;
+        return;
+    }
+
+    // 平静
+    robotBody.rotation.x *= 0.9;
+    robotRoot.rotation.z *= 0.9;
 }
 
 function getCurrentEmotion(){
@@ -981,10 +1009,7 @@ function updatePatrol(){
     const dz = p.z - robotRoot.position.z;
     const d = Math.hypot(dx, dz);
     
-    if (d < 0.4) {
-        patrolPoint = (patrolPoint + 1) % 4;
-        return;
-    }
+    if (d < 0.4) { patrolPoint = (patrolPoint + 1) % 4; return; }
     
     robotRoot.rotation.y = Math.atan2(dx, dz);
     robotRoot.position.x += dx * 0.04;
@@ -1067,15 +1092,9 @@ function animate() {
         robotBody.rotation.z = Math.sin(actionTime*0.5)*0.15; 
         if(actionTime>40) actionTime=0; 
     }
-    else if(emotionTime>0) {
-        updateEmotion();
-    }
-    else if(isPatrol) { 
-        updatePatrol(); 
-    } 
-    else if(isNavigating) { 
-        updateNav(); 
-    }
+    else if(emotionTime>0) { updateEmotion(); }
+    else if(isPatrol) { updatePatrol(); } 
+    else if(isNavigating) { updateNav(); }
     
     controls.update();
     renderer.render(scene, camera);
@@ -1096,8 +1115,25 @@ const sendBtn = document.getElementById('sendBtn');
 const chatInput = document.getElementById('chatInput');
 const chatBox = document.getElementById('chatBox');
 
-floatBtn.onclick = () => { kefuPopup.style.display = 'block'; }
-closeBtn.onclick = () => { kefuPopup.style.display = 'none'; }
+// 关闭AI助手 + 停止语音
+floatBtn.onclick = () => { 
+    kefuPopup.style.display = 'block'; 
+}
+closeBtn.onclick = () => { 
+    kefuPopup.style.display = 'none';
+    stopVoice(); // 关闭时立刻停止语音
+}
+
+// 点击空白关闭AI助手也停止语音
+kefuPopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#kefuPopup') && !e.target.closest('#floatBtn')) {
+        kefuPopup.style.display = 'none';
+        stopVoice();
+    }
+});
 
 async function sendMessage() {
     let text = chatInput.value.trim();
@@ -1124,29 +1160,20 @@ async function sendMessage() {
         });
         let data = await res.json();
         chatBox.removeChild(load);
-        let replyText = data.output.text;
+
+        let replyText = data.output.text || "暂无回复";
+        replyText = replyText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        replyText = replyText.replace(/\n/g, "<br>");
+        replyText = replyText.replace(/  /g, "&nbsp;&nbsp;");
+
         chatBox.innerHTML += `<div class="msg-item ai-msg"><span>${replyText}</span></div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
-
-        // 新增：AI语音朗读回复
-        voiceSpeak(replyText);
-
+        voiceSpeak(data.output.text);
     } catch (e) {
         chatBox.removeChild(load);
         chatBox.innerHTML += `<div class="msg-item ai-msg"><span>连接失败，请检查密钥</span></div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
-}
-
-// 语音朗读函数
-function voiceSpeak(text) {
-    // 先停止正在播放的语音
-    window.speechSynthesis.cancel();
-    // 创建语音实例
-    let utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "zh-CN";      // 中文
-    utter.rate = 1;            // 语速 1正常
-    utter.pitch = 1;           // 音调
-    window.speechSynthesis.speak(utter);
 }
 
 sendBtn.onclick = sendMessage;
@@ -1170,17 +1197,17 @@ setInterval(nextSlide, 3000);
 const star=document.getElementById('starCanvas');
 const starCtx=star.getContext('2d');
 star.width=innerWidth; star.height=innerHeight;
-let stars=Array.from({length:300},()=>({
+let stars=Array.from({length:200},()=>({
     x:Math.random()*innerWidth, y:Math.random()*innerHeight,
-    r:Math.random()*1.5, speed:Math.random()*0.2+0.05
+    r:Math.random()*1.2, speed:Math.random()*0.15+0.05
 }));
 function drawStars(){
-    starCtx.fillStyle='#02040a';
+    starCtx.fillStyle='rgba(0,0,0,0.5)';
     starCtx.fillRect(0,0,innerWidth,innerHeight);
     stars.forEach(s=>{
         starCtx.beginPath();
         starCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
-        starCtx.fillStyle='rgba(255,255,255,.7)';
+        starCtx.fillStyle='rgba(180,200,220,.5)';
         starCtx.fill();
         s.x+=s.speed;
         if(s.x>innerWidth)s.x=0;
@@ -1195,8 +1222,8 @@ neb.width=innerWidth; neb.height=innerHeight;
 function drawNebula(){
     nebCtx.clearRect(0,0,innerWidth,innerHeight);
     const g=nebCtx.createRadialGradient(innerWidth/2,innerHeight/2,0,innerWidth/2,innerHeight/2,innerWidth/1.8);
-    g.addColorStop(0,'rgba(0,200,255,0.05)');
-    g.addColorStop(1,'rgba(0,50,100,0)');
+    g.addColorStop(0,'rgba(0,120,180,0.04)');
+    g.addColorStop(1,'rgba(0,30,60,0)');
     nebCtx.fillStyle=g;
     nebCtx.fillRect(0,0,innerWidth,innerHeight);
     requestAnimationFrame(drawNebula);
@@ -1204,5 +1231,5 @@ function drawNebula(){
 drawNebula();
 </script>
 
-</body>
+</body> 
 </html>
