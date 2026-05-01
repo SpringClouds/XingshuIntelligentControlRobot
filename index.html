@@ -260,24 +260,26 @@
         display: flex; flex-direction: column; gap: 12px;
     }
 
+    /* ========== AI助手悬浮按钮：完美位置 ========== */
     .float-kefu {
         position: fixed;
-        right: 24px;
-        bottom: 24px;
-        width: 56px;
-        height: 56px;
+        right: 24px;    /* 右下角 */
+        bottom: 24px;   /* 底部 */
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         background: #00eaff;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #002233;
-        font-size: 24px;
+        font-size: 12px;
+        font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
         z-index: 9999;
         border: none;
-        box-shadow: 0 0 30px #00eaff;
+        box-shadow: 0 0 20px #00eaff;
     }
     .float-kefu:hover {
         transform: scale(1.1);
@@ -468,10 +470,10 @@
 
 <div class="control">
     <span class="label">基础控制</span>
-    <button class="btn" onclick="moveForward()">⬆️ 前进</button>
-    <button class="btn" onclick="moveBackward()">⬇️ 后退</button>
-    <button class="btn" onclick="turnLeft()">⬅️ 左转</button>
-    <button class="btn" onclick="turnRight()">➡️ 右转</button>
+    <button class="btn" onclick="moveForward()">⬆️ 前进(W)</button>
+    <button class="btn" onclick="moveBackward()">⬇️ 后退(S)</button>
+    <button class="btn" onclick="turnLeft()">⬅️ 左转(A)</button>
+    <button class="btn" onclick="turnRight()">➡️ 右转(D)</button>
 
     <span class="control-subtitle">智能模式</span>
     <button class="btn" onclick="startVoiceRecognition()">🎤 语音控制</button>
@@ -486,12 +488,13 @@
 </div>
 
 <div class="voice-bubble" id="voiceBubble">你好！我是智能全息机器人～</div>
-<div class="tips">👉 点击地面可导航 · 双击可快速定位 | 左侧可查看任务</div>
+<div class="tips">👉 点击地面可导航 · 双击可快速定位 | 键盘WASD移动机器人</div>
 
-<div class="float-kefu" id="floatBtn">💬</div>
+<!-- AI助手按钮：完美位置 -->
+<div class="float-kefu" id="floatBtn">AI助手</div>
 <div class="kefu-popup" id="kefuPopup">
     <div class="popup-header">
-        <span>星枢AI助手</span>
+        <span>🤖 星枢AI助手</span>
         <span class="close-btn" id="closeBtn">×</span>
     </div>
     <div class="chat-box" id="chatBox">
@@ -557,7 +560,9 @@ const pointCloud = new THREE.Points(particleGeometry, particleMaterial);
 scene.add(pointCloud);
 
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(3.5, 2, 5);
+// 固定最佳正面视角
+camera.position.set(0, 2, 5);
+camera.lookAt(0, 1, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -893,9 +898,20 @@ window.turnRight = async () => {
   moveCount++; updateQuestProgress("move", moveCount);
 };
 
+// 重置相机视角 + 机器人状态
 window.resetRobot = ()=>{
-    stopAll(); robotRoot.position.set(0,-0.1,0); robotRoot.rotation.set(0,0,0);
-    robotBody.rotation.set(0,0,0); setState("待机"); setEmotion("calm");
+    stopAll(); 
+    robotRoot.position.set(0,-0.1,0); 
+    robotRoot.rotation.set(0,0,0);
+    robotBody.rotation.set(0,0,0); 
+    setState("待机"); 
+    setEmotion("calm");
+    // 恢复最佳正面视角
+    camera.position.set(0, 2, 5);
+    camera.lookAt(0, 1, 0);
+    controls.target.set(0, 0.9, 0);
+    controls.update();
+    
     document.getElementById('voiceBubble').style.display='none';
     trailPoints.forEach(p => scene.remove(p)); trailPoints.length = 0;
 };
@@ -1068,6 +1084,17 @@ function showQuestPopup(quest){
     pop.style.display = 'block';
     setTimeout(()=>pop.style.display='none', 2500);
 }
+
+// 键盘WASD控制
+window.addEventListener('keydown', (e) => {
+    if(isMoving) return;
+    switch(e.key.toLowerCase()){
+        case 'w': moveForward(); break;
+        case 's': moveBackward(); break;
+        case 'a': turnLeft(); break;
+        case 'd': turnRight(); break;
+    }
+});
 
 function animate() {
     requestAnimationFrame(animate);
